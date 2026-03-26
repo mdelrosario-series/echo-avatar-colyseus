@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — Avatar Pipeline</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; }
+  .header { padding: 24px 32px; border-bottom: 1px solid #222; display: flex; align-items: center; justify-content: space-between; }
+  .header h1 { font-size: 20px; font-weight: 600; color: #fff; }
+  .header a { color: #4f9eff; text-decoration: none; font-size: 14px; }
+  .header a:hover { text-decoration: underline; }
+  .container { max-width: 700px; margin: 0 auto; padding: 32px; }
+  .section { background: #141414; border: 1px solid #222; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+  .section-title { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 16px; }
+  .config-item { margin-bottom: 16px; }
+  .config-item:last-child { margin-bottom: 0; }
+  .config-item label { display: block; font-size: 13px; font-weight: 600; color: #aaa; margin-bottom: 6px; }
+  .config-item .input-row { display: flex; gap: 8px; }
+  .config-item input { flex: 1; padding: 10px 14px; background: #0d0d0d; border: 1px solid #333; border-radius: 6px; color: #e0e0e0; font-family: monospace; font-size: 13px; outline: none; transition: border-color 0.2s; }
+  .config-item input:focus { border-color: #4f9eff; }
+  .config-item input::placeholder { color: #444; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+  .btn-primary { background: #4f9eff; color: #fff; }
+  .btn-primary:hover { background: #3a8fee; }
+  .btn-primary:disabled { background: #333; color: #666; cursor: not-allowed; }
+  .btn-danger { background: #ff4444; color: #fff; }
+  .btn-danger:hover { background: #dd3333; }
+  .btn-sm { padding: 8px 14px; font-size: 12px; }
+  .btn-ghost { background: transparent; border: 1px solid #333; color: #aaa; }
+  .btn-ghost:hover { border-color: #555; color: #fff; }
+  .btn-row { display: flex; gap: 12px; margin-top: 20px; }
+  .status { font-size: 13px; margin-top: 12px; min-height: 20px; }
+  .status.success { color: #50fa7b; }
+  .status.error { color: #ff5555; }
+  .toggle-vis { padding: 8px 12px; background: #222; border: 1px solid #333; border-radius: 6px; color: #aaa; cursor: pointer; font-size: 12px; white-space: nowrap; }
+  .toggle-vis:hover { border-color: #555; color: #fff; }
+  .add-row { display: flex; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid #1a1a1a; }
+  .add-row input { padding: 8px 12px; background: #0d0d0d; border: 1px solid #333; border-radius: 6px; color: #e0e0e0; font-family: monospace; font-size: 13px; outline: none; }
+  .add-row input:first-child { width: 200px; }
+  .add-row input:nth-child(2) { flex: 1; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 12px 0; }
+  .toggle-row label { font-size: 14px; color: #e0e0e0; }
+  .toggle-row .hint { font-size: 12px; color: #666; margin-top: 2px; }
+  .switch { position: relative; display: inline-block; width: 48px; height: 26px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background: #333; transition: 0.3s; border-radius: 26px; }
+  .slider:before { position: absolute; content: ""; height: 20px; width: 20px; left: 3px; bottom: 3px; background: #888; transition: 0.3s; border-radius: 50%; }
+  input:checked + .slider { background: #4f9eff; }
+  input:checked + .slider:before { transform: translateX(22px); background: #fff; }
+  .prefix-textarea { width: 100%; min-height: 100px; padding: 14px; background: #0d0d0d; border: 1px solid #333; border-radius: 6px; color: #e0e0e0; font-family: inherit; font-size: 14px; line-height: 1.6; resize: vertical; outline: none; transition: border-color 0.2s; }
+  .prefix-textarea:focus { border-color: #4f9eff; }
+  .prefix-textarea::placeholder { color: #444; }
+  .prefix-hint { font-size: 12px; color: #666; margin-top: 8px; line-height: 1.5; }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>⚙️ Admin — Avatar Pipeline</h1>
+  <div style="display:flex;align-items:center;gap:16px">
+    <a href="/">← Back to Pipeline</a>
+    <button onclick="logout()" style="background:#222;border:1px solid #333;color:#aaa;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px">🚪 Logout</button>
+  </div>
+</div>
+<div class="container">
+  <div class="section">
+    <div class="section-title">Display Settings</div>
+    <div class="toggle-row">
+      <div>
+        <label>Show Base Character Image</label>
+        <div class="hint">Display the input base image on the main pipeline page</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="showBaseImage" onchange="saveShowBaseImage()">
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div class="status" id="settingsStatus"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Cleanup</div>
+    <p style="font-size:13px;color:#888;margin-bottom:16px">Delete all processed files from <code style="color:#4f9eff">models/</code> and <code style="color:#4f9eff">output/</code> directories. This cannot be undone.</p>
+    <div id="cleanupInfo" style="font-size:13px;color:#666;margin-bottom:12px">Loading file count...</div>
+    <button class="btn btn-danger" id="cleanupBtn" onclick="cleanupFiles()">🗑 Delete All Processed Files</button>
+    <div class="status" id="cleanupStatus"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Gemini Prompt Prefix</div>
+    <p style="font-size:13px;color:#888;margin-bottom:12px">This text is always prepended to the user's input before sending to Gemini. The final prompt will be: <strong style="color:#4f9eff">prefix + user input</strong></p>
+    <textarea class="prefix-textarea" id="prefixField" placeholder="Loading..."></textarea>
+    <div class="prefix-hint">Example final prompt: <em id="prefixPreview" style="color:#aaa"></em></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="savePrefixBtn" onclick="savePrefix()">💾 Save Prefix</button>
+      <button class="btn btn-ghost btn-sm" onclick="resetPrefix()">↺ Reset Default</button>
+    </div>
+    <div class="status" id="prefixStatus"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">API Keys & Configuration</div>
+    <div id="configList">Loading...</div>
+    <div class="add-row">
+      <input type="text" id="newKey" placeholder="NEW_KEY_NAME">
+      <input type="text" id="newValue" placeholder="value">
+      <button class="btn btn-ghost btn-sm" onclick="addEntry()">+ Add</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="saveBtn" onclick="saveConfig()">💾 Save</button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+</div>
+
+<script>
+let config = [];
+let visibility = {};  // key -> bool (show/hide)
+
+const DEFAULT_PREFIX = 'keep the exact same style, proportions and pose, please change the character to look the following, but do not add a face:';
+const prefixField = document.getElementById('prefixField');
+const prefixPreview = document.getElementById('prefixPreview');
+const prefixStatus = document.getElementById('prefixStatus');
+
+function updatePreview() {
+  const prefix = prefixField.value.trim();
+  prefixPreview.textContent = prefix + ' [user\'s character description]';
+}
+
+prefixField.addEventListener('input', updatePreview);
+
+async function loadPrefix() {
+  try {
+    const resp = await fetch('/api/admin/prompt-prefix');
+    const data = await resp.json();
+    prefixField.value = data.prefix || DEFAULT_PREFIX;
+    updatePreview();
+  } catch(e) {
+    prefixField.value = DEFAULT_PREFIX;
+    updatePreview();
+  }
+}
+
+async function savePrefix() {
+  const btn = document.getElementById('savePrefixBtn');
+  btn.disabled = true;
+  prefixStatus.textContent = 'Saving...';
+  prefixStatus.className = 'status';
+  try {
+    const resp = await fetch('/api/admin/prompt-prefix', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prefix: prefixField.value.trim() })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      prefixStatus.textContent = '\u2713 Saved successfully';
+      prefixStatus.className = 'status success';
+    } else {
+      prefixStatus.textContent = 'Error: ' + (data.error || 'Unknown');
+      prefixStatus.className = 'status error';
+    }
+  } catch(e) {
+    prefixStatus.textContent = 'Error: ' + e.message;
+    prefixStatus.className = 'status error';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function resetPrefix() {
+  prefixField.value = DEFAULT_PREFIX;
+  updatePreview();
+}
+
+loadPrefix();
+
+// === Display Settings ===
+async function loadSettings() {
+  try {
+    const resp = await fetch('/api/admin/settings');
+    const data = await resp.json();
+    document.getElementById('showBaseImage').checked = data.show_base_image;
+  } catch(e) {}
+}
+
+async function saveShowBaseImage() {
+  const checked = document.getElementById('showBaseImage').checked;
+  const status = document.getElementById('settingsStatus');
+  try {
+    const resp = await fetch('/api/admin/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ show_base_image: checked })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      status.textContent = '\u2713 Saved';
+      status.className = 'status success';
+      setTimeout(() => { status.textContent = ''; }, 2000);
+    }
+  } catch(e) {
+    status.textContent = 'Error: ' + e.message;
+    status.className = 'status error';
+  }
+}
+
+loadSettings();
+
+// === Cleanup ===
+async function loadFileCount() {
+  try {
+    const resp = await fetch('/api/outputs');
+    const data = await resp.json();
+    const count = (data.files || []).length;
+    document.getElementById('cleanupInfo').textContent = count > 0
+      ? `${count} output file(s) currently on disk`
+      : 'No output files on disk';
+  } catch(e) {}
+}
+
+async function cleanupFiles() {
+  if (!confirm('Delete ALL processed files from models/ and output/? This cannot be undone.')) return;
+  const btn = document.getElementById('cleanupBtn');
+  const status = document.getElementById('cleanupStatus');
+  btn.disabled = true;
+  status.textContent = 'Deleting...';
+  status.className = 'status';
+  try {
+    const resp = await fetch('/api/admin/cleanup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: '{}'
+    });
+    const data = await resp.json();
+    if (data.success) {
+      status.textContent = `\u2713 Deleted ${data.deleted} file(s)`;
+      status.className = 'status success';
+      loadFileCount();
+    } else {
+      status.textContent = 'Error: ' + (data.error || 'Unknown');
+      status.className = 'status error';
+    }
+  } catch(e) {
+    status.textContent = 'Error: ' + e.message;
+    status.className = 'status error';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+loadFileCount();
+
+async function loadConfig() {
+  try {
+    const resp = await fetch('/api/admin/config');
+    const data = await resp.json();
+    config = data.config || [];
+    render();
+  } catch(e) {
+    document.getElementById('configList').innerHTML = '<div style="color:#ff5555">Error loading config</div>';
+  }
+}
+
+function render() {
+  const list = document.getElementById('configList');
+  if (config.length === 0) {
+    list.innerHTML = '<div style="color:#555;padding:12px 0">No configuration entries. Add one below.</div>';
+    return;
+  }
+  list.innerHTML = config.map((item, i) => `
+    <div class="config-item">
+      <label>${item.key}</label>
+      <div class="input-row">
+        <input type="${visibility[item.key] ? 'text' : 'password'}" 
+               value="${item.value.replace(/"/g, '&quot;')}" 
+               data-idx="${i}" 
+               oninput="updateValue(${i}, this.value)">
+        <button class="toggle-vis" onclick="toggleVis('${item.key}')">
+          ${visibility[item.key] ? '🙈 Hide' : '👁 Show'}
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="removeEntry(${i})" title="Remove">✕</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function updateValue(idx, val) { config[idx].value = val; }
+function toggleVis(key) { visibility[key] = !visibility[key]; render(); }
+function removeEntry(idx) { config.splice(idx, 1); render(); }
+
+function addEntry() {
+  const k = document.getElementById('newKey').value.trim();
+  const v = document.getElementById('newValue').value.trim();
+  if (!k) return;
+  config.push({ key: k, value: v, masked: '' });
+  document.getElementById('newKey').value = '';
+  document.getElementById('newValue').value = '';
+  render();
+}
+
+async function saveConfig() {
+  const status = document.getElementById('status');
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  status.textContent = 'Saving...';
+  status.className = 'status';
+  try {
+    const entries = {};
+    config.forEach(item => { entries[item.key] = item.value; });
+    const resp = await fetch('/api/admin/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: entries })
+    });
+    const data = await resp.json();
+    if (data.success) {
+      status.textContent = '✓ Saved successfully';
+      status.className = 'status success';
+    } else {
+      status.textContent = 'Error: ' + (data.error || 'Unknown');
+      status.className = 'status error';
+    }
+  } catch(e) {
+    status.textContent = 'Error: ' + e.message;
+    status.className = 'status error';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+loadConfig();
+
+async function logout() {
+  await fetch('/api/admin/logout', { method: 'POST' });
+  window.location.href = '/admin/login';
+}
+</script>
+</body>
+</html>

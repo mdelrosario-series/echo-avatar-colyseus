@@ -1,0 +1,12 @@
+.env
+api/lib/defaultBaseImageData.js
+input/*
+!input/.gitkeep
+models/*
+!models/.gitkeep
+output/*
+!output/.gitkeep
+__pycache__/
+*.pyc
+.vercel
+.env*.local

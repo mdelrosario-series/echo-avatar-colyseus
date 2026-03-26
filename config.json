@@ -1,0 +1,10 @@
+{
+  "rooms": {
+    "gameType": "echo_avatar",
+    "minPlayers": 1,
+    "maxPlayers": 25,
+    "defaultRules": {
+      "turnBased": false
+    }
+  }
+}

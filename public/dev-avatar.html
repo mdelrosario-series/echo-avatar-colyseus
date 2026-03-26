@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dev Avatar Builder</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: #0f0f13;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      padding: 40px 16px;
+    }
+    .card {
+      background: #1a1a24;
+      border: 1px solid #2a2a3a;
+      border-radius: 16px;
+      padding: 32px;
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    h1 { font-size: 1.4rem; font-weight: 700; color: #fff; }
+    .subtitle { font-size: 0.85rem; color: #888; margin-top: 4px; }
+
+    /* Drop zone */
+    .drop-zone {
+      border: 2px dashed #3a3a55;
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: #7b6cff; background: #1e1e2e; }
+    .drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .drop-zone .icon { font-size: 2rem; margin-bottom: 8px; }
+    .drop-zone .label { font-size: 0.9rem; color: #aaa; }
+
+    /* Preview */
+    .preview-img {
+      width: 100%;
+      max-height: 300px;
+      object-fit: contain;
+      border-radius: 10px;
+      background: #111;
+    }
+
+    /* Buttons */
+    button {
+      padding: 12px 20px;
+      border-radius: 10px;
+      border: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      width: 100%;
+    }
+    button:hover:not(:disabled) { opacity: 0.85; transform: translateY(-1px); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-primary { background: #7b6cff; color: #fff; }
+    .btn-success { background: #2ecc71; color: #fff; }
+    .btn-secondary { background: #2a2a3a; color: #ccc; }
+
+    /* Status */
+    .status-box {
+      background: #111;
+      border: 1px solid #2a2a3a;
+      border-radius: 10px;
+      padding: 16px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+    }
+    .status-row { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-wait  { background: #444; }
+    .dot-active { background: #7b6cff; animation: pulse 1s infinite; }
+    .dot-done  { background: #2ecc71; }
+    .dot-error { background: #e74c3c; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    /* Progress bar */
+    .progress-track {
+      background: #222;
+      border-radius: 6px;
+      height: 8px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #7b6cff, #a78bfa);
+      border-radius: 6px;
+      transition: width 1s linear;
+    }
+
+    .error { color: #e74c3c; font-size: 0.85rem; padding: 10px; background: #1a0505; border-radius: 8px; border: 1px solid #5a1010; }
+    .timer { font-size: 0.8rem; color: #888; text-align: center; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div>
+    <h1>Dev Avatar Builder</h1>
+    <p class="subtitle">Local pipeline → game. Runs on <code>localhost:8000</code>.</p>
+  </div>
+
+  <!-- Step 1: Upload -->
+  <div id="step-upload">
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept="image/*" />
+      <div class="icon">🖼️</div>
+      <div class="label">Drop an image or click to upload</div>
+    </div>
+  </div>
+
+  <!-- Image preview (hidden until file chosen) -->
+  <img id="preview" class="preview-img" style="display:none" alt="Preview" />
+
+  <!-- Error -->
+  <div id="error-box" class="error" style="display:none"></div>
+
+  <!-- Status (hidden until pipeline starts) -->
+  <div id="status-box" class="status-box" style="display:none">
+    <div class="status-row"><div class="dot dot-wait" id="dot-process"></div><span id="label-process">Waiting to process image…</span></div>
+    <div class="status-row"><div class="dot dot-wait" id="dot-gen"></div><span id="label-gen">Waiting to generate 3D…</span></div>
+    <div class="status-row"><div class="dot dot-wait" id="dot-scale"></div><span id="label-scale">Waiting to scale…</span></div>
+    <div class="status-row"><div class="dot dot-wait" id="dot-rig"></div><span id="label-rig">Waiting to rig…</span></div>
+    <div style="margin-top:12px">
+      <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    </div>
+    <p class="timer" id="timer" style="margin-top:8px"></p>
+  </div>
+
+  <!-- Action button -->
+  <button id="action-btn" class="btn-primary" disabled>Upload an image first</button>
+</div>
+
+<script>
+  const STORAGE_KEY = 'echoAvatar_avatar';
+  const API = '/avatar-api';
+
+  let imageBase64 = null;
+  let timerInterval = null;
+  let elapsedSeconds = 0;
+
+  const el = (id) => document.getElementById(id);
+  const fileInput = el('file-input');
+  const preview = el('preview');
+  const actionBtn = el('action-btn');
+  const errorBox = el('error-box');
+  const statusBox = el('status-box');
+
+  // --- File handling ---
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadFile(fileInput.files[0]); });
+
+  const dropZone = el('drop-zone');
+  dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault(); dropZone.classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) loadFile(file);
+  });
+
+  function loadFile(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      imageBase64 = e.target.result.split(',')[1]; // strip data:image/...;base64,
+      preview.src = e.target.result;
+      preview.style.display = 'block';
+      actionBtn.disabled = false;
+      actionBtn.textContent = 'Generate Avatar';
+      actionBtn.className = 'btn-primary';
+      actionBtn.onclick = runPipeline;
+      setError(null);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // --- UI helpers ---
+  function setError(msg) {
+    errorBox.style.display = msg ? 'block' : 'none';
+    errorBox.textContent = msg || '';
+  }
+
+  function setDot(id, state) { // 'wait' | 'active' | 'done' | 'error'
+    el('dot-' + id).className = 'dot dot-' + state;
+  }
+
+  function setLabel(id, text) { el('label-' + id).textContent = text; }
+
+  function setProgress(pct) { el('progress-fill').style.width = pct + '%'; }
+
+  function startTimer() {
+    elapsedSeconds = 0;
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      elapsedSeconds++;
+      const m = Math.floor(elapsedSeconds / 60);
+      const s = String(elapsedSeconds % 60).padStart(2, '0');
+      el('timer').textContent = `Elapsed: ${m}:${s}`;
+    }, 1000);
+  }
+
+  function stopTimer() { clearInterval(timerInterval); }
+
+  // --- Pipeline ---
+  async function runPipeline() {
+    if (!imageBase64) return;
+    setError(null);
+    statusBox.style.display = 'block';
+    actionBtn.disabled = true;
+    actionBtn.textContent = 'Running…';
+    startTimer();
+
+    try {
+      // Step 1: Process image
+      setDot('process', 'active');
+      setLabel('process', 'Processing image with Gemini…');
+      setProgress(5);
+
+      const formData = new FormData();
+      const blob = b64toBlob(imageBase64, 'image/png');
+      formData.append('image', blob, 'avatar.png');
+
+      const procRes = await fetch(`${API}/api/process`, { method: 'POST', body: formData });
+      const procData = await procRes.json().catch(() => ({}));
+      if (!procRes.ok || !procData.success) throw new Error(procData.error || 'Image processing failed');
+
+      const processedBase64 = procData.image;
+      setDot('process', 'done');
+      setLabel('process', 'Image processed ✓');
+      setProgress(20);
+
+      // Show processed image
+      preview.src = `data:image/png;base64,${processedBase64}`;
+
+      // Step 2: Generate 3D
+      setDot('gen', 'active');
+      setLabel('gen', 'Submitting to Meshy 3D…');
+      setProgress(25);
+
+      const genRes = await fetch(`${API}/api/generate3d`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: processedBase64 }),
+      });
+      const genData = await genRes.json().catch(() => ({}));
+      if (!genRes.ok || !genData.success) throw new Error(genData.error || '3D generation failed');
+
+      const jobId = genData.job_id;
+      setLabel('gen', `Job #${jobId} submitted — polling…`);
+
+      // Step 3: Poll
+      const statusLabels = {
+        queued:        ['gen',   'Queued…',              30],
+        submitting:    ['gen',   'Submitting to Meshy…', 33],
+        generating:    ['gen',   'Generating 3D mesh…',  40],
+        downloading:   ['gen',   'Downloading mesh…',    60],
+        scaling:       ['scale', 'Scaling to ~1.8m…',    70],
+        rigging:       ['rig',   'Rigging skeleton…',    82],
+        saving_blend:  ['rig',   'Saving blend file…',   90],
+      };
+      let lastStage = null;
+
+      for (;;) {
+        await sleep(2500);
+        const jobRes = await fetch(`${API}/api/job/${jobId}`);
+        const job = await jobRes.json().catch(() => ({}));
+        const stage = job.status;
+
+        if (stage !== lastStage) {
+          const info = statusLabels[stage];
+          if (info) {
+            const [dotId, label, pct] = info;
+            // Mark previous stages done
+            const order = ['process','gen','scale','rig'];
+            const cur = order.indexOf(dotId);
+            order.slice(0, cur).forEach(d => setDot(d, 'done'));
+            setDot(dotId, 'active');
+            setLabel(dotId, label);
+            setProgress(pct);
+          }
+          lastStage = stage;
+        }
+
+        if (stage === 'done' && job.result?.glb_url) {
+          // Convert absolute URL to proxy path if needed
+          let glbUrl = job.result.glb_url;
+          if (glbUrl.startsWith('http://localhost:8000') || glbUrl.startsWith('http://127.0.0.1:8000')) {
+            glbUrl = glbUrl.replace(/^https?:\/\/(?:localhost|127\.0\.0\.1):8000/, API);
+          } else if (glbUrl.startsWith('/')) {
+            glbUrl = API + glbUrl;
+          }
+
+          stopTimer();
+          setProgress(100);
+          ['process','gen','scale','rig'].forEach(d => setDot(d, 'done'));
+          setLabel('rig', 'Rigging complete ✓');
+
+          // Save to sessionStorage (same key & format the game uses)
+          sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ glbUrl }));
+
+          actionBtn.disabled = false;
+          actionBtn.textContent = '🎮 Enter Game';
+          actionBtn.className = 'btn-success';
+          actionBtn.onclick = () => { window.location.href = '/'; };
+          el('timer').textContent = `Done in ${Math.floor(elapsedSeconds/60)}:${String(elapsedSeconds%60).padStart(2,'0')}`;
+          return;
+        }
+
+        if (stage === 'error') {
+          throw new Error(job.error || 'Pipeline failed');
+        }
+      }
+    } catch (err) {
+      stopTimer();
+      setError(err.message);
+      ['process','gen','scale','rig'].forEach(d => {
+        if (el('dot-' + d).classList.contains('dot-active')) setDot(d, 'error');
+      });
+      actionBtn.disabled = false;
+      actionBtn.textContent = 'Retry';
+      actionBtn.onclick = runPipeline;
+    }
+  }
+
+  // --- Helpers ---
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  function b64toBlob(b64, type) {
+    const bytes = atob(b64);
+    const arr = new Uint8Array(bytes.length);
+    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+    return new Blob([arr], { type });
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,58 @@
+{
+  "name": "run-template-3d-react",
+  "version": "1.0.0",
+  "description": "React Three Fiber + Vite + TypeScript template with RundotGameAPI integration",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "dev:mp": "vite",
+    "dev:colyseus": "npm --prefix server run dev",
+    "_build": "tsc && vite build",
+    "build": "npm run _build",
+    "build:bundled": "cross-env RUNDOT_GAME_DISABLE_EMBEDDED_LIBS=true npm run _build",
+    "preview": "vite preview",
+    "deploy": "npm run build && rundot deploy",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "format": "prettier \"{src,public}/**/*.{ts,tsx,js,jsx,json,css,html}\" --write",
+    "format:check": "prettier \"{src,public}/**/*.{ts,tsx,js,jsx,json,css,html}\" --check"
+  },
+  "keywords": [
+    "react",
+    "vite",
+    "typescript",
+    "three.js",
+    "react-three-fiber",
+    "RUN.game"
+  ],
+  "author": "",
+  "license": "SEE LICENSE IN LICENSE.txt",
+  "devDependencies": {
+    "@types/react": "^18.3.17",
+    "@types/react-dom": "^18.3.5",
+    "@types/three": "~0.170.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "cross-env": "^7.0.3",
+    "firebase": "^12.10.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "vite": "^6.3.5",
+    "vitest": "^4.1.0",
+    "ws": "^8.19.0"
+  },
+  "dependencies": {
+    "@colyseus/sdk": "^0.17.35",
+    "@react-three/drei": "^9.121.0",
+    "@react-three/fiber": "^8.17.0",
+    "@series-inc/rundot-game-sdk": "^5.9.9",
+    "agora-rtc-sdk-ng": "^4.24.3",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "~0.170.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@series-inc/rundot-game-sdk"
+    ]
+  }
+}

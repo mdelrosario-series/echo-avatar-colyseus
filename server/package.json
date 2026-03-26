@@ -1,0 +1,21 @@
+{
+  "name": "echo-avatar-colyseus-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc --noEmit",
+    "start": "tsx src/index.ts"
+  },
+  "dependencies": {
+    "@colyseus/tools": "^0.17.0",
+    "@colyseus/ws-transport": "^0.17.0",
+    "colyseus": "^0.17.8",
+    "tsx": "^4.19.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.3"
+  }
+}

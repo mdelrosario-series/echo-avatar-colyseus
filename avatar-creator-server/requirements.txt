@@ -1,0 +1,64 @@
+# dcc_autorigging — Python package requirements
+#
+# ── Does this work without a GPU? ───────────────────────────────────────────
+# YES.  All inference runs on CPU automatically when no CUDA GPU is detected.
+# GPU is faster (~1 s per mesh) but is never required.
+# On a headless server or any machine without an NVIDIA GPU, just install the
+# CPU builds below and everything works out of the box.
+# ────────────────────────────────────────────────────────────────────────────
+#
+# Install into your target environment with:
+#   pip install -r requirements.txt
+#
+# For Blender's built-in Python:
+#   "<blender>/python/bin/python" -m pip install -r requirements.txt
+#
+# For Maya's built-in Python (mayapy):
+#   mayapy -m pip install -r requirements.txt
+
+# ── Core mesh processing (no GPU involved at all) ───────────────────────────
+trimesh>=4.0.0
+numpy>=1.25.0
+scipy>=1.10.0
+einops>=0.6.0
+
+# ── PyTorch ─────────────────────────────────────────────────────────────────
+# CPU build — works everywhere, no NVIDIA drivers needed:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+#
+# CUDA build — if you have an NVIDIA GPU and want ~30× faster inference:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu121
+#   (replace cu121 with your CUDA version: cu118, cu121, cu124, etc.)
+#
+# Plain `pip install torch` below installs the CPU build on most systems.
+torch>=2.0.0
+torchvision>=0.15.0
+timm>=0.9.0
+
+# ── torch-cluster ────────────────────────────────────────────────────────────
+# Required by the MIA neural network.
+# IMPORTANT: the wheel must match your exact PyTorch version.
+#
+# Step 1 — find your torch version:
+#   python -c "import torch; print(torch.__version__)"
+#   # example output: 2.3.0+cpu  or  2.3.0+cu121
+#
+# Step 2 — install the matching torch-cluster wheel:
+#
+#   CPU (works on any machine, including GPU-less servers):
+#   pip install torch-cluster -f https://data.pyg.org/whl/torch-2.3.0+cpu.html
+#
+#   CUDA 12.1:
+#   pip install torch-cluster -f https://data.pyg.org/whl/torch-2.3.0+cu121.html
+#
+#   CUDA 11.8:
+#   pip install torch-cluster -f https://data.pyg.org/whl/torch-2.3.0+cu118.html
+#
+# Replace 2.3.0 with your actual torch version (e.g. 2.0.1, 2.1.2, 2.4.0).
+# Find all available wheels at: https://data.pyg.org/whl/
+#
+# The line below is a placeholder — replace with the correct URL for your setup:
+# torch-cluster
+
+# ── Model download from HuggingFace ─────────────────────────────────────────
+huggingface_hub>=0.20.0

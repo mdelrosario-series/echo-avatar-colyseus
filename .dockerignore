@@ -1,0 +1,8 @@
+# Shrink Docker build context (build is run from this directory)
+.git
+node_modules
+server/node_modules
+dist
+*.md
+.env
+.env.*

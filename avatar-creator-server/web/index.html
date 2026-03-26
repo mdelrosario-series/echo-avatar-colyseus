@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Avatar Pipeline</title>
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}
+</script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; }
+  .header { padding: 24px 32px; border-bottom: 1px solid #222; }
+  .header h1 { font-size: 20px; font-weight: 600; color: #fff; }
+  .header p { font-size: 13px; color: #888; margin-top: 4px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px; }
+  .panels { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .panel { background: #141414; border: 1px solid #222; border-radius: 12px; padding: 20px; min-height: 400px; display: flex; flex-direction: column; }
+  .panel-title { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 16px; }
+  .image-box { flex: 1; border-radius: 8px; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #0d0d0d; }
+  .image-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .prompt-section { margin-top: 24px; }
+  .prompt-label { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 8px; }
+  .prompt-field { width: 100%; min-height: 60px; padding: 14px; background: #141414; border: 1px solid #222; border-radius: 8px; color: #e0e0e0; font-family: inherit; font-size: 14px; line-height: 1.5; resize: vertical; outline: none; transition: border-color 0.2s; }
+  .prompt-field:focus { border-color: #4f9eff; }
+  .prompt-field::placeholder { color: #444; }
+  .step-divider { margin: 32px 0 24px; border-top: 1px solid #222; padding-top: 24px; }
+  .step-divider h2 { font-size: 16px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .step-divider p { font-size: 13px; color: #888; }
+  .viewer-panel { background: #141414; border: 1px solid #222; border-radius: 12px; padding: 20px; }
+  .viewer-canvas { width: 100%; height: 500px; border-radius: 8px; background: #0d0d0d; position: relative; }
+  .viewer-canvas canvas { border-radius: 8px; }
+  .btn-row { display: flex; justify-content: center; gap: 12px; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 12px 28px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.15s; margin-top: 16px; }
+  .btn-primary { background: #4f9eff; color: #fff; }
+  .btn-primary:hover { background: #3a8fee; }
+  .btn-primary:disabled { background: #333; color: #666; cursor: not-allowed; }
+  .spinner { display: none; width: 32px; height: 32px; border: 3px solid #333; border-top-color: #4f9eff; border-radius: 50%; animation: spin 0.8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status { text-align: center; font-size: 13px; color: #888; margin-top: 12px; min-height: 20px; }
+  .status.error { color: #ff5555; }
+  .status.success { color: #50fa7b; }
+
+  .btn-secondary { background: #222; color: #ccc; border: 1px solid #333; }
+  .btn-secondary:hover { background: #2a2a2a; border-color: #555; }
+  @media (max-width: 700px) { .panels { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🧑‍🎨 Avatar Pipeline</h1>
+  <p>Base character → Gemini customization → 3D model generation &nbsp;·&nbsp; <a href="/admin" style="color:#4f9eff">Admin</a></p>
+</div>
+<div class="container">
+  <!-- Step 1: Gemini Processing -->
+  <div id="baseImagePanel" style="max-width:400px;margin:0 auto;display:none">
+    <div class="panel-title" style="text-align:center">Base Character</div>
+    <div class="image-box" style="min-height:200px">
+      <img id="baseImg" src="/base_character.png">
+    </div>
+  </div>
+  <div id="outputPanel" style="max-width:400px;margin:0 auto;display:none">
+    <div class="panel-title" style="text-align:center">Gemini Output</div>
+    <div class="image-box" style="min-height:200px">
+      <img id="outputImg">
+    </div>
+  </div>
+  <div id="spinnerWrap" style="display:none;text-align:center;padding:20px">
+    <div class="spinner" id="spinner" style="display:inline-block;margin:0 auto"></div>
+  </div>
+
+  <div class="prompt-section">
+    <div class="prompt-label">Character Changes</div>
+    <div id="prefixDisplay" style="font-size:12px;color:#555;margin-bottom:8px;font-style:italic;line-height:1.4"></div>
+    <textarea class="prompt-field" id="promptField" placeholder="e.g. wearing a red cape and armor, with elf ears and blue skin..."></textarea>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-primary" id="processBtn">⚡ Process with Gemini</button>
+  </div>
+  <div class="status" id="status"></div>
+
+  <!-- Step 2: 3D Generation -->
+  <div class="step-divider" id="step2Section">
+    <h2>🪩 Step 2 — Generate Rigged 3D Avatar</h2>
+    <p>Rodin 3D → Scale → Retopology → Rig transfer → FBX + .blend</p>
+  </div>
+  <div class="viewer-panel" id="viewerPanel" style="display:none">
+    <div class="panel-title">3D Preview</div>
+    <div class="viewer-canvas" id="viewerCanvas"></div>
+  </div>
+  <div class="btn-row" id="step2Btns">
+    <button class="btn btn-primary" id="generate3dBtn">🪩 Generate Rigged Avatar</button>
+    <a class="btn btn-primary" id="downloadBtn" style="display:none;text-decoration:none" download>⬇ Download GLB</a>
+    <a class="btn btn-primary" id="downloadFbxBtn" style="display:none;text-decoration:none" download>📦 Download FBX</a>
+    <a class="btn btn-primary" id="downloadBlendBtn" style="display:none;text-decoration:none" download>🟠 Download .blend</a>
+  </div>
+  <div class="status" id="status3d"></div>
+
+
+</div>
+
+<script>
+const processBtn = document.getElementById('processBtn');
+const spinner = document.getElementById('spinner');
+const outputImg = document.getElementById('outputImg');
+const statusEl = document.getElementById('status');
+let processedImageB64 = null;
+
+// Load settings and prompt prefix
+(async () => {
+  try {
+    const [prefixResp, settingsResp] = await Promise.all([
+      fetch('/api/admin/prompt-prefix'),
+      fetch('/api/admin/settings')
+    ]);
+    const prefixData = await prefixResp.json();
+    if (prefixData.prefix) {
+      document.getElementById('prefixDisplay').textContent = 'Prefix: "' + prefixData.prefix + '"';
+    }
+    const settings = await settingsResp.json();
+    if (settings.show_base_image) {
+      document.getElementById('baseImagePanel').style.display = '';
+    }
+  } catch(e) {}
+})();
+
+processBtn.addEventListener('click', async () => {
+  processBtn.disabled = true;
+  document.getElementById('outputPanel').style.display = 'none';
+  document.getElementById('baseImagePanel').style.display = 'none';
+  document.getElementById('spinnerWrap').style.display = '';
+  statusEl.textContent = 'Sending to Gemini...';
+  statusEl.className = 'status';
+
+  try {
+    // Fetch the base image as blob and send it
+    const imgResp = await fetch('/base_character.png');
+    const blob = await imgResp.blob();
+    const formData = new FormData();
+    formData.append('image', blob, 'base_character.png');
+    formData.append('prompt', document.getElementById('promptField').value);
+
+    const resp = await fetch('/api/process', { method: 'POST', body: formData });
+    const text = await resp.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) {
+      statusEl.textContent = 'Server error: ' + text.substring(0, 200);
+      statusEl.className = 'status error';
+      document.getElementById('spinnerWrap').style.display = 'none';
+      processBtn.disabled = false;
+      return;
+    }
+    if (data.success) {
+      outputImg.src = 'data:image/png;base64,' + data.image;
+      document.getElementById('outputPanel').style.display = '';
+      processedImageB64 = data.image;
+      statusEl.textContent = 'Done! Image processed.';
+      statusEl.className = 'status success';
+      showStep2();
+    } else {
+      statusEl.textContent = 'Error: ' + (data.error || 'Unknown error');
+      statusEl.className = 'status error';
+    }
+  } catch (e) {
+    statusEl.textContent = 'Error: ' + e.message;
+    statusEl.className = 'status error';
+  } finally {
+    document.getElementById('spinnerWrap').style.display = 'none';
+    processBtn.disabled = false;
+  }
+});
+
+// === STEP 2: 3D Generation ===
+const step2Section = document.getElementById('step2Section');
+const step2Btns = document.getElementById('step2Btns');
+const viewerPanel = document.getElementById('viewerPanel');
+const generate3dBtn = document.getElementById('generate3dBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const status3d = document.getElementById('status3d');
+
+function showStep2() {
+  step2Section.style.display = '';
+  step2Btns.style.display = '';
+}
+
+generate3dBtn.addEventListener('click', async () => {
+  let imageToSend = processedImageB64;
+  // If no Gemini output yet, fetch and use the base image
+  if (!imageToSend) {
+    status3d.textContent = 'No Gemini output — using base image...';
+    status3d.className = 'status';
+    const resp = await fetch('/base_character.png');
+    const blob = await resp.blob();
+    const reader = new FileReader();
+    imageToSend = await new Promise(r => { reader.onload = () => r(reader.result.split(',')[1]); reader.readAsDataURL(blob); });
+  }
+  generate3dBtn.disabled = true;
+  document.getElementById('downloadFbxBtn').style.display = 'none';
+  document.getElementById('downloadBlendBtn').style.display = 'none';
+  downloadBtn.style.display = 'none';
+  status3d.textContent = 'Starting pipeline: Rodin → Scale → Rig → FBX...';
+  status3d.className = 'status';
+
+  try {
+    const resp = await fetch('/api/generate3d', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ image: imageToSend })
+    });
+    const text = await resp.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) {
+      status3d.textContent = 'Server error: ' + text.substring(0, 200);
+      status3d.className = 'status error';
+      generate3dBtn.disabled = false;
+      return;
+    }
+    if (data.success && data.job_id) {
+      // Poll for completion
+      const jobId = data.job_id;
+      const statusLabels = {
+        queued: '⏳ Queued...',
+        submitting: '📤 Submitting to Rodin...',
+        generating: '🪩 Generating 3D mesh (20–60s)...',
+        downloading: '⬇️ Downloading mesh from Rodin...',
+        scaling: '📏 Scaling mesh to match image...',
+        retopology: '🔷 Retopologizing mesh (quad remesh)...',
+        rigging: '🦴 Transferring skeleton & skin weights...',
+        saving_blend: '🟠 Saving comparison .blend...',
+        done: '✅ Done!', error: '❌ Error'
+      };
+      while (true) {
+        await new Promise(r => setTimeout(r, 3000));
+        const pollResp = await fetch('/api/job/' + jobId);
+        const job = await pollResp.json();
+        status3d.textContent = statusLabels[job.status] || job.status;
+        if (job.status === 'done') {
+          status3d.textContent = '✅ Rigged avatar ready!';
+          status3d.className = 'status success';
+          // GLB preview
+          if (job.result.glb_url) {
+            downloadBtn.href = job.result.glb_url;
+            downloadBtn.download = job.result.glb_filename;
+            downloadBtn.style.display = '';
+            viewerPanel.style.display = '';
+            loadGLBViewer(job.result.glb_url);
+          }
+          // FBX download
+          if (job.result.fbx_url) {
+            const fbxBtn = document.getElementById('downloadFbxBtn');
+            fbxBtn.href = job.result.fbx_url;
+            fbxBtn.download = job.result.fbx_filename;
+            fbxBtn.style.display = '';
+          }
+          // .blend download
+          if (job.result.blend_url) {
+            const blendBtn = document.getElementById('downloadBlendBtn');
+            blendBtn.href = job.result.blend_url;
+            blendBtn.download = job.result.blend_filename;
+            blendBtn.style.display = '';
+          }
+          break;
+        } else if (job.status === 'error') {
+          status3d.textContent = '❌ Error: ' + (job.error || 'Unknown');
+          status3d.className = 'status error';
+          break;
+        }
+      }
+    } else if (!data.success) {
+      status3d.textContent = 'Error: ' + data.error;
+      status3d.className = 'status error';
+    }
+  } catch(e) {
+    status3d.textContent = 'Error: ' + e.message;
+    status3d.className = 'status error';
+  } finally {
+    generate3dBtn.disabled = false;
+  }
+});
+
+
+
+async function loadGLBViewer(url) {
+  const { Scene, PerspectiveCamera, WebGLRenderer, AmbientLight, DirectionalLight, Color, Box3, Vector3 } = await import('three');
+  const { OrbitControls } = await import('three/addons/controls/OrbitControls.js');
+  const { GLTFLoader } = await import('three/addons/loaders/GLTFLoader.js');
+
+  const container = document.getElementById('viewerCanvas');
+  container.innerHTML = '';
+  const w = container.clientWidth, h = container.clientHeight;
+
+  const scene = new Scene();
+  scene.background = new Color(0x0d0d0d);
+  const camera = new PerspectiveCamera(45, w / h, 0.01, 100);
+  camera.position.set(0, 1, 3);
+
+  const renderer = new WebGLRenderer({ antialias: true });
+  renderer.setSize(w, h);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  container.appendChild(renderer.domElement);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+
+  scene.add(new AmbientLight(0xffffff, 0.6));
+  const dir = new DirectionalLight(0xffffff, 1.2);
+  dir.position.set(2, 4, 3);
+  scene.add(dir);
+
+  const loader = new GLTFLoader();
+  loader.load(url, (gltf) => {
+    const model = gltf.scene;
+    scene.add(model);
+    const box = new Box3().setFromObject(model);
+    const center = box.getCenter(new Vector3());
+    const size = box.getSize(new Vector3()).length();
+    model.position.sub(center);
+    camera.position.set(0, size * 0.3, size * 1.5);
+    controls.target.set(0, 0, 0);
+    controls.update();
+  });
+
+  function animate() { requestAnimationFrame(animate); controls.update(); renderer.render(scene, camera); }
+  animate();
+
+  window.addEventListener('resize', () => {
+    const nw = container.clientWidth, nh = container.clientHeight;
+    camera.aspect = nw / nh; camera.updateProjectionMatrix();
+    renderer.setSize(nw, nh);
+  });
+}
+</script>
+</body>
+</html>

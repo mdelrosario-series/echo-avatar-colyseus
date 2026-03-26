@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm:*)",
+      "Bash(git:*)",
+      "Bash(npx tsc:*)",
+      "Bash(python3:*)",
+      "Bash(node:*)",
+      "Bash(npm install:*)",
+      "Bash(xargs grep:*)",
+      "Bash(cd \"T:\\\\Work\\\\1a_Series_work\\\\moonshots\\\\echoAvatar\" && npm run build 2>&1)",
+      "Skill(analyze-codebase)",
+      "Skill(plan-phase)",
+      "Bash(cd:*)",
+      "Bash(find:*)"
+    ]
+  }
+}

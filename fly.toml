@@ -1,0 +1,27 @@
+# Deploy from this directory only: `cd echoAvatar` then `fly deploy`.
+# (Do not confuse with `avatar-creator-server/fly.toml` — a separate Fly app.)
+#
+# Colyseus server on Fly.io — https://fly.io/docs/reference/configuration/
+# Replace `app` with your Fly app name after `fly launch`, or run launch and merge.
+
+app = "echo-avatar-colyseus"
+primary_region = "iad"
+
+[build]
+  dockerfile = "server/Dockerfile"
+
+[env]
+  COLYSEUS_PORT = "8080"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = true
+  auto_start_machines = true
+  min_machines_running = 0
+  processes = ["app"]
+
+[[vm]]
+  memory = "256mb"
+  cpu_kind = "shared"
+  cpus = 1
